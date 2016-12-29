@@ -16,5 +16,8 @@
   "license": "ISC",
   "devDependencies": {
     "electron": "^1.4.13"
+  },
+  "dependencies": {
+    "node-notifier": "^4.6.1"
   }
 }
