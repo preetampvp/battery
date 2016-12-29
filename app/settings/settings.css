@@ -8,4 +8,31 @@ button {
   margin: 5px;
 }
 
+input[type=text] {
+  padding: 5px;
+  width: 30px;
+}
 
+.container {
+  margin-top: 10px;
+}
+
+.config-text {
+  margin-right: 40px;
+  width: 50px;
+  display: inline-block;
+}
+
+.tip {
+  font-size: 0.9em;
+  color: #ccc
+}
+
+.code {
+  background-color: #aaa;
+  border: 1px solid #999;
+  color: #333;
+  padding: 4px; 
+  font-style: italic;
+  border-radius: 5px;
+}

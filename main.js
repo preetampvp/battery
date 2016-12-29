@@ -26,8 +26,10 @@ function setupTray() {
 
 function setupTrayContextMenu(menuItems) {
   let defaultItems = [
-    { label: '⭕️ Refresh' , click() { computeAndUpdateStatus() }},
+    { label: '⭕️ Refresh' , click() { readConfig();computeAndUpdateStatus() }},
     { label: '⚙ Settings' , click() { changeSettings() }},
+    { type: 'separator' },
+    { label: '😵 Restore defaults' , click() { restoreDefaults() }},
     { type: 'separator' },
     { label: '❌ Quit' , click() { quit() }}
   ]
@@ -42,11 +44,33 @@ function setupTrayContextMenu(menuItems) {
 
 
 function setupComs() {
-  ipcMain.on("close-settings", (event, args) => {
+  ipcMain.on("close-settings", (e, args) => {
     if(settingsWin) {
      settingsWin.close()
     }
   })
+
+  ipcMain.on("get-config", (e, args) => {
+    e.sender.send("config", config)
+  })
+
+  ipcMain.on("save-config", (e, args) => {
+    fs.writeFileSync(`${app.getPath("home")}/.battery-status-app.conf`, `module.exports = ${JSON.stringify(args)}`, 'utf8')
+    settingsWin.close()
+    readConfig()
+    computeAndUpdateStatus()
+  })
+}
+
+function restoreDefaults() {
+  let userHomeDir = app.getPath("home")
+  let customConfig = `${userHomeDir}/.battery-status-app.conf`
+  if(fs.existsSync(customConfig)) {
+    fs.unlinkSync(customConfig)
+    if(settingsWin) settingsWin.close()
+    readConfig()
+    computeAndUpdateStatus()
+  }
 }
 
 function readConfig() {
@@ -54,13 +78,14 @@ function readConfig() {
   let customConfig = `${userHomeDir}/.battery-status-app.conf`
   if(fs.existsSync(customConfig)) {
     config = require(customConfig) 
+    notify(JSON.stringify(config))
   } else {
     config = require("./config.js")
   }
 }
 
 function monitor() {
-  //changeSettings()
+  changeSettings()
   computeAndUpdateStatus()
   setInterval(computeAndUpdateStatus, config.polling * 60 * 1000)
 }
@@ -87,7 +112,7 @@ function computeAndUpdateStatus() {
 
 function changeSettings() {
   if(settingsWin) { return }
-  settingsWin = new BrowserWindow({center: true, frame: false, width:500, height: 400, kiosk: false})
+  settingsWin = new BrowserWindow({center: true, frame: false, width:400, height: 500, kiosk: false})
   settingsWin.on('close', () =>  settingsWin = null )
   settingsWin.webContents.openDevTools()
   settingsWin.loadURL(`file://${__dirname}/app/settings/settings.html`)
