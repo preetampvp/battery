@@ -9,7 +9,8 @@ let monitorInterval = null
 let settingsWin = null
 
 app.on('ready', () => {
-  //app.dock.hide()
+  if(!process.env.debug) app.dock.hide()
+  
   app.on("window-all-closed", (e) => e.preventDefault() )
   readConfig()
   setupTray()
@@ -55,7 +56,7 @@ function setupComs() {
   })
 
   ipcMain.on("save-config", (e, args) => {
-    fs.writeFileSync(`${app.getPath("home")}/.battery-status-app.conf`, `module.exports = ${JSON.stringify(args)}`, 'utf8')
+    fs.writeFileSync(`${app.getPath("home")}/.battery-status-app.conf`, JSON.stringify(args), 'utf8')
     settingsWin.close()
     readConfig()
     computeAndUpdateStatus()
@@ -63,6 +64,7 @@ function setupComs() {
 }
 
 function restoreDefaults() {
+  if(settingsWin) { settingsWin.close() }
   let userHomeDir = app.getPath("home")
   let customConfig = `${userHomeDir}/.battery-status-app.conf`
   if(fs.existsSync(customConfig)) {
@@ -77,10 +79,10 @@ function readConfig() {
   let userHomeDir = app.getPath("home")
   let customConfig = `${userHomeDir}/.battery-status-app.conf`
   if(fs.existsSync(customConfig)) {
-    config = require(customConfig) 
-    notify(JSON.stringify(config))
+    config = JSON.parse(fs.readFileSync(customConfig, 'utf8'))
+    if(process.env.debug) notify(JSON.stringify(config))
   } else {
-    config = require("./config.js")
+    config = JSON.parse(fs.readFileSync('./config.js', 'utf8'))
   }
 }
 
@@ -95,9 +97,20 @@ function computeAndUpdateStatus() {
   .then((info) => {
     let remainingPercentage = Math.ceil(Number(info.CurrentCapacity) * 100 / Number(info.MaxCapacity))
     let code = remainingPercentage - (remainingPercentage % 10)
+
+    let timeToFullHrPart = Math.floor(Number(info.AvgTimeToFull) / 60) 
+    let timeToFullMinPart = Math.floor(Number(info.AvgTimeToFull) % 60)
+    if(timeToFullMinPart.toString().length === 1) timeToFullMinPart = `0${timeToFullMinPart}`
+    let timeToFull = timeToFullHrPart < 20 ? `${timeToFullHrPart}:${timeToFullMinPart}` : 'Computing...'
+    
+    let timeToEmptyHrPart = Math.floor(Number(info.AvgTimeToEmpty) / 60) 
+    let timeToEmptyMinPart = Math.floor(Number(info.AvgTimeToEmpty) % 60)
+    if(timeToEmptyMinPart.toString().length === 1) timeToEmptyMinPart = `0${timeToEmptyMinPart}`
+    let timeToEmpty = timeToEmptyHrPart < 20 ? `${timeToEmptyHrPart}:${timeToEmptyMinPart}` : 'Computing...'
+
     if(info.IsCharging == "No") {
       tray.setTitle(config['status'][code.toString()])
-      setupTrayContextMenu([ {label: `${remainingPercentage}% Remaining`, enabled: false } ])
+      setupTrayContextMenu([ {label: 'Power source: Battery', enabled: false}, {label: `Juice: ${remainingPercentage}%`, enabled: false }, {label: `Avg. time to empty: ${timeToEmpty}`, enabled: false}])
     } else {
       const charging = config.status.charging
       let title = `${charging}${config['status'][code.toString()]}`
@@ -105,16 +118,17 @@ function computeAndUpdateStatus() {
         title = `${title}${charging}`
       }
       tray.setTitle(title)
-      setupTrayContextMenu([ {label: `${remainingPercentage}% Charging`, enabled: false } ])
+      setupTrayContextMenu([ {label: 'Power source: AC', enabled: false}, {label: `${remainingPercentage}% and Charging`, enabled: false }, {label: `Avg. time to full: ${timeToFull}`, enabled: false} ])
     }
   })
+  .catch(() => notify("Error updating batter status"))
 }
 
 function changeSettings() {
   if(settingsWin) { return }
-  settingsWin = new BrowserWindow({center: true, frame: false, width:400, height: 500, kiosk: false})
+  settingsWin = new BrowserWindow({center: true, frame: false, width:400, height: 530, kiosk: false})
   settingsWin.on('close', () =>  settingsWin = null )
-  settingsWin.webContents.openDevTools()
+  if(process.env.debug)  settingsWin.webContents.openDevTools()
   settingsWin.loadURL(`file://${__dirname}/app/settings/settings.html`)
   settingsWin.focus()
 }
@@ -130,7 +144,7 @@ function quit() {
   app.quit()
 }
 
-const requiredBatteryInfo = ["MaxCapacity", "DesignCapacity", "CurrentCapacity", "IsCharging", "TimeRemaining"]
+const requiredBatteryInfo = ["MaxCapacity", "AvgTimeToFull", "AvgTimeToEmpty", "CurrentCapacity", "IsCharging"]
 function getBatteryStatus() {
   return new Promise((resolve, reject) => {
     exec("ioreg -rc AppleSmartBattery", (err, sout, serr) => {

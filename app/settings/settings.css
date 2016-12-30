@@ -1,26 +1,35 @@
 body {
   background-color: #000;
   color: fff;
+  font-size: 15px;
 }
 
 button {
   padding: 20px;
   margin: 5px;
+  -webkit-app-region: no-drag;
 }
 
 input[type=text] {
   padding: 5px;
   width: 30px;
+  -webkit-app-region: no-drag;
+}
+
+.tip {
+  margin-bottom: 5px;
 }
 
 .container {
   margin-top: 10px;
+  margin-bottom: 2px;
 }
 
 .config-text {
-  margin-right: 40px;
+  margin-right: 60px;
   width: 50px;
   display: inline-block;
+  text-align: right;
 }
 
 .tip {
