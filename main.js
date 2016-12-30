@@ -2,15 +2,18 @@ const { app, Tray, Menu, BrowserWindow, ipcMain } = require("electron")
 const notifier = require("node-notifier")
 const fs = require("fs")
 const exec = require("child_process").exec
+const AutoLaunch = require("auto-launch")
 
 let tray = null
 let config = null
 let monitorInterval = null
 let settingsWin = null
+let autoLaunch = null
 
 app.on('ready', () => {
   if(!process.env.debug) app.dock.hide()
-  
+  if(!process.env.debug) bootstrapAutoLaunch()
+
   app.on("window-all-closed", (e) => e.preventDefault() )
   readConfig()
   setupTray()
@@ -18,30 +21,77 @@ app.on('ready', () => {
   monitor()
 })
 
+
 function setupTray() {
-  tray = new Tray("./battery.png")
+  tray = new Tray(`${__dirname}/battery.png`)
   tray.setToolTip("Battery status")
   tray.setTitle("🔋")
   tray.setHighlightMode("never")
 }
 
 function setupTrayContextMenu(menuItems) {
-  let defaultItems = [
-    { label: '⭕️ Refresh' , click() { readConfig();computeAndUpdateStatus() }},
-    { label: '⚙ Settings' , click() { changeSettings() }},
-    { type: 'separator' },
-    { label: '😵 Restore defaults' , click() { restoreDefaults() }},
-    { type: 'separator' },
-    { label: '❌ Quit' , click() { quit() }}
-  ]
+  getAutoLaunchEnabledState()
+  .then((isAutoLaunchEnabled) => {
 
-  if(menuItems) {
-    defaultItems = [...menuItems, { type: 'separator' }, ...defaultItems]
-  }
-  
-  let contextMenu = Menu.buildFromTemplate(defaultItems)
-  tray.setContextMenu(contextMenu)
+    let defaultItems = [
+      { label: '⭕️ Refresh' , click() { readConfig();computeAndUpdateStatus() }},
+      { label: '⚙ Settings' , click() { changeSettings() }},
+      { type: 'separator' },
+      { label: 'Start at login', type: 'checkbox', checked: isAutoLaunchEnabled, enabled: canAutoLaunch(), click() { toggleAutoLaunchState() } }, 
+      { label: '😵 Restore defaults' , click() { restoreDefaults() }},
+      { type: 'separator' },
+      { label: '❌ Quit' , click() { quit() }}
+    ]
+
+    if(menuItems) {
+      defaultItems = [...menuItems, { type: 'separator' }, ...defaultItems]
+    }
+    
+    let contextMenu = Menu.buildFromTemplate(defaultItems)
+    tray.setContextMenu(contextMenu)
+  })
 }
+
+/* Auto launch stuff */
+function bootstrapAutoLaunch() {
+  let appPath = `${__dirname.substring(0, __dirname.indexOf('BatteryStatus.app'))}/BatteryStatus.app`
+  autoLaunch = new AutoLaunch({
+    name: 'Battery Status',
+    path: appPath 
+  })
+}
+
+function getAutoLaunchEnabledState() {
+  return new Promise((resolve, reject) => {
+    if(autoLaunch === null) {
+      return resolve(false) 
+    }
+
+    autoLaunch.isEnabled()
+    .then(resolve)
+    .catch(() => {
+      resolve(false)
+    })
+  })
+}
+
+function canAutoLaunch() {
+  return (autoLaunch !== null)
+}
+
+function toggleAutoLaunchState() {
+  if(!autoLaunch) return
+
+  autoLaunch.isEnabled()
+  .then((isEnabled) => {
+    isEnabled === true ? autoLaunch.disable() : autoLaunch.enable() 
+    computeAndUpdateStatus()
+  })
+  .catch(() => {
+    notify("Unable to toggle state")
+  })
+}
+/* End of Auto launch stuff */
 
 
 function setupComs() {
@@ -82,12 +132,12 @@ function readConfig() {
     config = JSON.parse(fs.readFileSync(customConfig, 'utf8'))
     if(process.env.debug) notify(JSON.stringify(config))
   } else {
-    config = JSON.parse(fs.readFileSync('./config.js', 'utf8'))
+    config = JSON.parse(fs.readFileSync(`${__dirname}/config.js`, 'utf8'))
   }
 }
 
 function monitor() {
-  changeSettings()
+  //changeSettings()
   computeAndUpdateStatus()
   setInterval(computeAndUpdateStatus, config.polling * 60 * 1000)
 }

@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "export debug=true && electron .",
-    "prod": "electron ."
+    "prod": "electron .",
+    "build": "electron-packager . BatteryStatus --platform=darwin --arch=x64 --overwrite"
   },
   "keywords": [
     "electron",
@@ -16,9 +17,11 @@
   "author": "Preetam Pattanashetty",
   "license": "ISC",
   "devDependencies": {
-    "electron": "^1.4.13"
+    "electron": "^1.4.13",
+    "electron-packager": "^8.4.0"
   },
   "dependencies": {
+    "auto-launch": "^5.0.1",
     "node-notifier": "^4.6.1"
   }
 }
