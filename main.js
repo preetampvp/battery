@@ -178,7 +178,7 @@ function computeAndUpdateStatus() {
 
 function changeSettings() {
   if(settingsWin) { return }
-  settingsWin = new BrowserWindow({center: true, frame: false, width:400, height: 530, kiosk: false})
+  settingsWin = new BrowserWindow({center: true, frame: false, width: 300, height: 530, kiosk: false})
   settingsWin.on('close', () =>  settingsWin = null )
   if(process.env.debug)  settingsWin.webContents.openDevTools()
   settingsWin.loadURL(`file://${__dirname}/app/settings/settings.html`)
