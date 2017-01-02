@@ -15,11 +15,59 @@ app.on('ready', () => {
   if(!process.env.debug) bootstrapAutoLaunch()
 
   app.on("window-all-closed", (e) => e.preventDefault() )
+  setupMenu()
   readConfig()
   setupTray()
   setupComs()
   monitor()
 })
+
+function setupMenu() {
+  const template = [
+   {
+     label: "BatteryStatus",
+     submenu: [
+       { role: 'quit' }
+     ]
+   },
+   {
+      label: 'Edit',
+      submenu: [
+        {
+          role: 'undo'
+        },
+        {
+          role: 'redo'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          role: 'cut'
+        },
+        {
+          role: 'copy'
+        },
+        {
+          role: 'paste'
+        },
+        {
+          label: 'Speech',
+          submenu: [
+            {
+              role: 'startspeaking'
+            },
+            {
+              role: 'stopspeaking'
+            }
+          ]
+        }
+      ]
+    }
+  ]
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
+}
 
 
 function setupTray() {
@@ -64,7 +112,7 @@ function bootstrapAutoLaunch() {
 function getAutoLaunchEnabledState() {
   return new Promise((resolve, reject) => {
     if(autoLaunch === null) {
-      return resolve(false) 
+      return resolve(false)
     }
 
     autoLaunch.isEnabled()
@@ -97,6 +145,7 @@ function toggleAutoLaunchState() {
 function setupComs() {
   ipcMain.on("close-settings", (e, args) => {
     if(settingsWin) {
+    app.dock.hide()
      settingsWin.close()
     }
   })
@@ -107,6 +156,7 @@ function setupComs() {
 
   ipcMain.on("save-config", (e, args) => {
     fs.writeFileSync(`${app.getPath("home")}/.battery-status-app.conf`, JSON.stringify(args), 'utf8')
+    app.dock.hide()
     settingsWin.close()
     readConfig()
     computeAndUpdateStatus()
@@ -143,7 +193,7 @@ function monitor() {
 }
 
 function computeAndUpdateStatus() {
-  getBatteryStatus() 
+  getBatteryStatus()
   .then((info) => {
     let remainingPercentage = Math.ceil(Number(info.CurrentCapacity) * 100 / Number(info.MaxCapacity))
     let code = remainingPercentage - (remainingPercentage % 10)
@@ -178,6 +228,7 @@ function computeAndUpdateStatus() {
 
 function changeSettings() {
   if(settingsWin) { return }
+  app.dock.show()
   settingsWin = new BrowserWindow({center: true, frame: false, width: 300, height: 530, kiosk: false})
   settingsWin.on('close', () =>  settingsWin = null )
   if(process.env.debug)  settingsWin.webContents.openDevTools()
