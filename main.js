@@ -160,6 +160,7 @@ function computeAndUpdateStatus() {
 
     if(info.IsCharging == "No") {
       tray.setTitle(config['status'][code.toString()])
+      tray.setToolTip = `Battery status: ${remainingPercentage}%`
       setupTrayContextMenu([ {label: 'Power source: Battery', enabled: false}, {label: `Juice: ${remainingPercentage}%`, enabled: false }, {label: `Avg. time to empty: ${timeToEmpty}`, enabled: false}])
     } else {
       const charging = config.status.charging
@@ -168,6 +169,7 @@ function computeAndUpdateStatus() {
         title = `${title}${charging}`
       }
       tray.setTitle(title)
+      tray.setToolTip = `Battery status: ${remainingPercentage}% and Charging`
       setupTrayContextMenu([ {label: 'Power source: AC', enabled: false}, {label: `${remainingPercentage}% and Charging`, enabled: false }, {label: `Avg. time to full: ${timeToFull}`, enabled: false} ])
     }
   })
